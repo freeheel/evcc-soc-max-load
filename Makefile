@@ -14,7 +14,7 @@ BUILD_ARGS := -trimpath -ldflags='$(LD_FLAGS)'
 
 # docker
 DOCKER_IMAGE := registry.runitmyself.com/evcc
-DOCKER_TAG := testing
+DOCKER_TAG := testing-1
 PLATFORM := linux/amd64,linux/arm64,linux/arm/v6
 
 # gokrazy image
