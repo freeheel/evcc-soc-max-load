@@ -168,6 +168,9 @@ type Loadpoint struct {
 	chargeRemainingEnergy   float64       // Remaining charge energy in Wh
 	progress                *Progress     // Step-wise progress indicator
 
+	// charging speed-based SoC estimation
+	speedEstimator *soc.SpeedEstimator // Speed-based SoC estimator for vehicles without SoC reporting
+
 	// session log
 	db      *session.DB
 	session *session.Session
@@ -443,6 +446,11 @@ func (lp *Loadpoint) evChargeStartHandler() {
 	// soc update reset
 	lp.socUpdated = time.Time{}
 
+	// start speed estimator if available
+	if lp.speedEstimator != nil {
+		lp.speedEstimator.StartCharging()
+	}
+
 	// set created when first charging session segment starts
 	lp.updateSession(func(session *session.Session) {
 		if session.Created.IsZero() {
@@ -459,6 +467,11 @@ func (lp *Loadpoint) evChargeStopHandler() {
 	// soc update reset
 	util.ResetCached()
 	lp.socUpdated = time.Time{}
+
+	// stop speed estimator if available
+	if lp.speedEstimator != nil {
+		lp.speedEstimator.StopCharging()
+	}
 
 	// reset pv enable/disable timer
 	// https://github.com/evcc-io/evcc/issues/2289
@@ -987,8 +1000,20 @@ func (lp *Loadpoint) LimitEnergyReached() bool {
 func (lp *Loadpoint) LimitSocReached() bool {
 	lp.RLock()
 	defer lp.RUnlock()
+
+	// Check traditional SoC limit
 	limit := lp.effectiveLimitSoc()
-	return limit > 0 && limit < 100 && lp.vehicleSoc >= float64(limit)
+	if limit > 0 && limit < 100 && lp.vehicleSoc >= float64(limit) {
+		return true
+	}
+
+	// Check speed estimator limit
+	if lp.speedEstimator != nil && lp.speedEstimator.IsTargetReached() {
+		lp.log.INFO.Printf("charging speed-based SoC limit reached")
+		return true
+	}
+
+	return false
 }
 
 // minSocNotReached checks if minimum is configured and not reached.
@@ -1492,6 +1517,11 @@ func (lp *Loadpoint) UpdateChargePowerAndCurrents() float64 {
 		lp.log.DEBUG.Printf("charge power: %.0fW", power)
 		lp.publish(keys.ChargePower, power)
 
+		// Update speed estimator with current power
+		if lp.speedEstimator != nil {
+			lp.speedEstimator.UpdatePower(power)
+		}
+
 		// https://github.com/evcc-io/evcc/issues/2153
 		// https://github.com/evcc-io/evcc/issues/6986
 		// https://github.com/evcc-io/evcc/issues/13378
@@ -1602,6 +1632,25 @@ func (lp *Loadpoint) updateChargeVoltages() {
 	}
 }
 
+// publishSpeedEstimatorStatus publishes the speed estimator status
+func (lp *Loadpoint) publishSpeedEstimatorStatus() {
+	if lp.speedEstimator == nil {
+		return
+	}
+
+	// Get status from speed estimator
+	status := lp.speedEstimator.GetStatus()
+
+	// Publish status
+	lp.publish(keys.SpeedEstimatorEnabled, status["enabled"])
+	lp.publish(keys.SpeedEstimatorActive, status["estimationActive"])
+	lp.publish(keys.SpeedEstimatorEstimatedSoc, status["estimatedSoc"])
+	lp.publish(keys.SpeedEstimatorTargetSoc, status["targetSoc"])
+	lp.publish(keys.SpeedEstimatorTargetReached, status["targetReached"])
+	lp.publish(keys.SpeedEstimatorMaxPower, status["maxPower"])
+	lp.publish(keys.SpeedEstimatorMeasurements, status["measurementCount"])
+}
+
 // publish charged energy and duration
 func (lp *Loadpoint) publishChargeProgress() {
 	if f, err := lp.chargeRater.ChargedEnergy(); err == nil {
@@ -1632,6 +1681,9 @@ func (lp *Loadpoint) publishChargeProgress() {
 	if _, ok := lp.chargeMeter.(api.MeterEnergy); ok {
 		lp.publish(keys.ChargeTotalImport, lp.chargeMeterTotal())
 	}
+
+	// publish speed estimator status
+	lp.publishSpeedEstimatorStatus()
 }
 
 // publish state of charge, remaining charge duration and range

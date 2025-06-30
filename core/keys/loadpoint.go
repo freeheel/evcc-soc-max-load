@@ -99,4 +99,13 @@ const (
 	VehicleLimitSoc        = "vehicleLimitSoc"        // vehicle api soc limit
 	VehicleClimaterActive  = "vehicleClimaterActive"  // vehicle climater active
 	VehicleWelcomeActive   = "vehicleWelcomeActive"   // vehicle might need welcome charge
+
+	// charging speed-based SoC estimation
+	SpeedEstimatorEnabled       = "speedEstimatorEnabled"       // speed estimator enabled
+	SpeedEstimatorActive        = "speedEstimatorActive"        // speed estimator currently active
+	SpeedEstimatorEstimatedSoc  = "speedEstimatorEstimatedSoc"  // speed estimator estimated SoC
+	SpeedEstimatorTargetSoc     = "speedEstimatorTargetSoc"     // speed estimator target SoC
+	SpeedEstimatorTargetReached = "speedEstimatorTargetReached" // speed estimator target reached
+	SpeedEstimatorMaxPower      = "speedEstimatorMaxPower"      // speed estimator max observed power
+	SpeedEstimatorMeasurements  = "speedEstimatorMeasurements"  // speed estimator measurement count
 )

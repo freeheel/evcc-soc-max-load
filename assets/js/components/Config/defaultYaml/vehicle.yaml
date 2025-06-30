@@ -40,3 +40,16 @@ soc: # state of charge
 #maxcurrent: # set max charge current
 #    source: js
 #    script: console.log(maxcurrent);
+
+## charging speed-based SoC estimation (for vehicles without SoC reporting)
+
+#chargingSpeedLimit:
+#  enabled: false # enable charging speed-based SoC estimation
+#  targetSoc: 80 # target SoC percentage to stop charging
+#  maxPowerWindow: "10m" # time window to determine max charging power
+#  reductionThreshold: 0.15 # power reduction threshold (15%) to trigger estimation
+#  minChargingTime: "15m" # minimum charging time before estimation starts
+#  sampleInterval: "30s" # how often to sample power
+#  historyRetention: "2h" # how long to keep power history
+#  stabilityWindow: "5m" # window to check for stable power reduction
+#  minPowerForEstimation: 1000 # minimum power (W) to consider for estimation

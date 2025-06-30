@@ -140,6 +140,9 @@ func (lp *Loadpoint) setActiveVehicle(v api.Vehicle) {
 		}
 		lp.socEstimator = soc.NewEstimator(lp.log, lp.charger, v, estimate)
 
+		// Initialize speed estimator if vehicle has charging speed limit configuration
+		lp.initializeSpeedEstimator(v)
+
 		lp.publish(keys.VehicleName, vehicle.Settings(lp.log, v).Name())
 		lp.publish(keys.VehicleTitle, v.GetTitle())
 
@@ -152,6 +155,7 @@ func (lp *Loadpoint) setActiveVehicle(v api.Vehicle) {
 		lp.progress.Reset()
 	} else {
 		lp.socEstimator = nil
+		lp.speedEstimator = nil
 		lp.unpublishVehicleIdentity()
 	}
 
@@ -378,4 +382,70 @@ func (lp *Loadpoint) vehicleClimateActive() bool {
 	}
 
 	return false
+}
+
+// initializeSpeedEstimator creates and configures the speed estimator for the given vehicle
+func (lp *Loadpoint) initializeSpeedEstimator(v api.Vehicle) {
+	// Check if vehicle has charging speed limit configuration
+	type configProvider interface {
+		GetChargingSpeedLimitConfig() map[string]interface{}
+	}
+
+	if configVehicle, ok := v.(configProvider); ok {
+		// Get the configuration from the vehicle
+		config := configVehicle.GetChargingSpeedLimitConfig()
+
+		// Convert to ChargingSpeedConfig
+		speedConfig := soc.DefaultChargingSpeedConfig()
+
+		if enabled, ok := config["enabled"].(bool); ok {
+			speedConfig.Enabled = enabled
+		}
+		if targetSoc, ok := config["targetSoc"].(int); ok && targetSoc > 0 {
+			speedConfig.TargetSoc = targetSoc
+		}
+		if threshold, ok := config["reductionThreshold"].(float64); ok && threshold > 0 {
+			speedConfig.ReductionThreshold = threshold
+		}
+		if minPower, ok := config["minPowerForEstimation"].(float64); ok && minPower > 0 {
+			speedConfig.MinPowerForEstimation = minPower
+		}
+
+		// Parse duration strings
+		if maxPowerWindow, ok := config["maxPowerWindow"].(string); ok && maxPowerWindow != "" {
+			if duration, err := time.ParseDuration(maxPowerWindow); err == nil {
+				speedConfig.MaxPowerWindow = duration
+			}
+		}
+		if minChargingTime, ok := config["minChargingTime"].(string); ok && minChargingTime != "" {
+			if duration, err := time.ParseDuration(minChargingTime); err == nil {
+				speedConfig.MinChargingTime = duration
+			}
+		}
+		if sampleInterval, ok := config["sampleInterval"].(string); ok && sampleInterval != "" {
+			if duration, err := time.ParseDuration(sampleInterval); err == nil {
+				speedConfig.SampleInterval = duration
+			}
+		}
+		if historyRetention, ok := config["historyRetention"].(string); ok && historyRetention != "" {
+			if duration, err := time.ParseDuration(historyRetention); err == nil {
+				speedConfig.HistoryRetention = duration
+			}
+		}
+		if stabilityWindow, ok := config["stabilityWindow"].(string); ok && stabilityWindow != "" {
+			if duration, err := time.ParseDuration(stabilityWindow); err == nil {
+				speedConfig.StabilityWindow = duration
+			}
+		}
+
+		// Create the speed estimator
+		lp.speedEstimator = soc.NewSpeedEstimator(lp.log, speedConfig)
+
+		if speedConfig.Enabled {
+			lp.log.INFO.Printf("speed estimator enabled: target SoC %d%%, reduction threshold %.1f%%",
+				speedConfig.TargetSoc, speedConfig.ReductionThreshold*100)
+		}
+	} else {
+		lp.speedEstimator = nil
+	}
 }

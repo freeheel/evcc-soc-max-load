@@ -13,6 +13,19 @@ type embed struct {
 	Identifiers_ []string         `mapstructure:"identifiers"`
 	Features_    []api.Feature    `mapstructure:"features"`
 	OnIdentify   api.ActionConfig `mapstructure:"onIdentify"`
+
+	// Charging speed-based SoC estimation configuration
+	ChargingSpeedLimit struct {
+		Enabled               bool    `mapstructure:"enabled"`               // Enable charging speed-based SoC estimation
+		TargetSoc             int     `mapstructure:"targetSoc"`             // Target SoC percentage (e.g., 80)
+		MaxPowerWindow        string  `mapstructure:"maxPowerWindow"`        // Time window to determine max charging power (default: "10m")
+		ReductionThreshold    float64 `mapstructure:"reductionThreshold"`    // Power reduction threshold to trigger SoC estimation (default: 0.15 = 15%)
+		MinChargingTime       string  `mapstructure:"minChargingTime"`       // Minimum charging time before estimation starts (default: "15m")
+		SampleInterval        string  `mapstructure:"sampleInterval"`        // How often to sample power (default: "30s")
+		HistoryRetention      string  `mapstructure:"historyRetention"`      // How long to keep power history (default: "2h")
+		StabilityWindow       string  `mapstructure:"stabilityWindow"`       // Window to check for stable power reduction (default: "5m")
+		MinPowerForEstimation float64 `mapstructure:"minPowerForEstimation"` // Minimum power to consider for estimation (default: 1000W)
+	} `mapstructure:"chargingSpeedLimit"`
 }
 
 // Title implements the api.Vehicle interface
@@ -69,4 +82,19 @@ var _ api.FeatureDescriber = (*embed)(nil)
 // Features implements the api.FeatureDescriber interface
 func (v *embed) Features() []api.Feature {
 	return v.Features_
+}
+
+// GetChargingSpeedLimitConfig returns the charging speed limit configuration
+func (v *embed) GetChargingSpeedLimitConfig() map[string]interface{} {
+	config := make(map[string]interface{})
+	config["enabled"] = v.ChargingSpeedLimit.Enabled
+	config["targetSoc"] = v.ChargingSpeedLimit.TargetSoc
+	config["maxPowerWindow"] = v.ChargingSpeedLimit.MaxPowerWindow
+	config["reductionThreshold"] = v.ChargingSpeedLimit.ReductionThreshold
+	config["minChargingTime"] = v.ChargingSpeedLimit.MinChargingTime
+	config["sampleInterval"] = v.ChargingSpeedLimit.SampleInterval
+	config["historyRetention"] = v.ChargingSpeedLimit.HistoryRetention
+	config["stabilityWindow"] = v.ChargingSpeedLimit.StabilityWindow
+	config["minPowerForEstimation"] = v.ChargingSpeedLimit.MinPowerForEstimation
+	return config
 }
