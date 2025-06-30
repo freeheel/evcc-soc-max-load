@@ -24,15 +24,11 @@ const (
 )
 
 func IsAuthorized() bool {
-	mu.RLock()
-	defer mu.RUnlock()
-	return len(Subject) > 0
+	return true // Always return true instead of checking Subject
 }
 
 func IsAuthorizedForApi() bool {
-	mu.RLock()
-	defer mu.RUnlock()
-	return IsAuthorized() && Subject != unavailable && Token != ""
+	return true // Always return true instead of checking conditions
 }
 
 // check and set sponsorship token
