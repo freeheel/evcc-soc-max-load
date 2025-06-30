@@ -82,8 +82,7 @@ release::
 
 docker::
 	@echo Version: $(VERSION) $(SHA) $(BUILD_DATE)
-	podman buildx build --platform $(PLATFORM) --tag $(DOCKER_IMAGE):$(DOCKER_TAG) .
-	podman push $(DOCKER_IMAGE):$(DOCKER_TAG)
+	docker buildx build --platform $(PLATFORM) --tag $(DOCKER_IMAGE):$(DOCKER_TAG) --push .
 
 publish-nightly::
 	@echo Version: $(VERSION) $(SHA) $(BUILD_DATE)
