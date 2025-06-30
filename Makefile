@@ -13,7 +13,7 @@ LD_FLAGS := -X github.com/evcc-io/evcc/util.Version=$(VERSION) -X github.com/evc
 BUILD_ARGS := -trimpath -ldflags='$(LD_FLAGS)'
 
 # docker
-DOCKER_IMAGE := evcc/evcc
+DOCKER_IMAGE := registry.runitmyself.com/evcc
 DOCKER_TAG := testing
 PLATFORM := linux/amd64,linux/arm64,linux/arm/v6
 
@@ -79,9 +79,11 @@ snapshot::
 release::
 	goreleaser --clean
 
+
 docker::
 	@echo Version: $(VERSION) $(SHA) $(BUILD_DATE)
-	docker buildx build --platform $(PLATFORM) --tag $(DOCKER_IMAGE):$(DOCKER_TAG) --push .
+	podman buildx build --platform $(PLATFORM) --tag $(DOCKER_IMAGE):$(DOCKER_TAG) .
+	podman push $(DOCKER_IMAGE):$(DOCKER_TAG)
 
 publish-nightly::
 	@echo Version: $(VERSION) $(SHA) $(BUILD_DATE)
